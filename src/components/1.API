@@ -1,0 +1,56 @@
+// Import required dependencies
+const express = require('express');
+const bodyParser = require('body-parser');
+const mysql = require('mysql');
+
+// Create a MySQL connection pool
+const pool = mysql.createPool({
+  host: 'localhost',
+  user: 'your_username',
+  password: 'your_password',
+  database: 'your_database'
+});
+
+// Create an Express application
+const app = express();
+
+// Middleware for parsing JSON requests
+app.use(bodyParser.json());
+
+// API endpoint for adding a customer
+app.post('/api/customers', (req, res) => {
+  const { name, phoneNumber, email } = req.body;
+
+  // Validate input parameters
+  if (!name || !phoneNumber || !email) {
+    return res.status(400).json({ error: 'Missing required parameters' });
+  }
+
+  // Check for duplicates
+  pool.query('SELECT * FROM customers WHERE phoneNumber = ?', phoneNumber, (error, results) => {
+    if (error) {
+      console.error('Error executing MySQL query:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+
+    if (results.length > 0) {
+      return res.status(409).json({ error: 'Phone number already exists' });
+    }
+
+    // Add the customer to the database
+    pool.query('INSERT INTO customers (name, phoneNumber, email) VALUES (?, ?, ?)', [name, phoneNumber, email], (error, result) => {
+      if (error) {
+        console.error('Error executing MySQL query:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+
+      return res.status(201).json({ message: 'Customer added successfully' });
+    });
+  });
+});
+
+// Start the server
+app.listen(3000, () => {
+  console.log('Server started on port 3000');
+});
+
